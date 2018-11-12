@@ -1,0 +1,20 @@
+#!/bin/bash
+#PBS -P xe2
+#PBS -q copyq
+#PBS -l ncpus=1
+#PBS -l walltime=10:00:00
+#PBS -l other=gdata1
+#PBS -l mem=1000MB
+#PBS -l jobfs=100G
+#PBS -l wd
+#PBS -m abe
+#PBS -M ellen.levingston@anu.edu.au
+
+# x print executed commands to terminal, u treat unset variables as an error when substituting
+set -xu
+
+camera="/g/data/xe2/phenomics/camupload/..."
+start="2018_10_01"
+end="2018_10_01"
+
+python3 tar_files_by_week.py -t tar_file_temp_dir -s "$start" -e "$end" s "$camera"
