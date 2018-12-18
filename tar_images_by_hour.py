@@ -27,6 +27,7 @@ Usage example
 
 import sys
 import os
+import signal
 import glob
 import re
 import tarfile
@@ -43,7 +44,6 @@ if sys.version_info.minor < 5:
 date_regex = re.compile('20[1-9][0-9]_[0-1][0-9]_[0-3][0-9]')
 
 extensions_to_include = ['.jpg','.cr2', '.jpeg', '.tiff', '.tif']
-
 
 def date_in_range(date: str, lower_bound: str, upper_bound: str):
     """Test if a date is in a given range
@@ -84,6 +84,41 @@ def parse_args():
 
     return args.dirs, args.start, args.end
 
+def archive(file_name, tar):
+    """
+    Dumb write to the tarfile.
+    Should probably check if the file is already in the archive (if archive exists)
+    - but that raises the issue of comparing and deciding which file is correct...
+    Note: function call is wrapped in a try:except statement, no IOError checking
+    is done inside this function
+    """
+
+    # need the full path to locate the current file to be written to archive,
+    # but only write the base name to the archive (not full path)
+    file_path = os.path.realpath(file_name)
+    with tarfile.open(tar_file_name, 'a') as tar:
+        tar.add(file_path, arcname=os.path.basename(file_path))
+
+
+# not in use
+def archive_and_remove(file_name, tar):
+    """
+    Dumb write to the tarfile.
+    Should probably check if the file is already in the archive (if archive exists)
+    - but that raises the issue of comparing and deciding which file is correct...
+    Anyway, since the file is removed immediately after being archived, in theory
+    it's unlikely to ever be added twice.
+    Note: function call is wrapped in a try:except statement, no IOError checking
+    is done inside this function
+    """
+
+    # need the full path to locate the current file to be written to archive,
+    # but only write the base name to the archive (not full path)
+    file_path = os.path.realpath(file_name)
+    with tarfile.open(tar_file_name, 'a') as tar:
+        tar.add(file_path, arcname=os.path.basename(file_path))
+        os.remove(file_name)
+
 
 def main():
     """
@@ -98,11 +133,11 @@ def main():
       files, since they are now archived
     """
     # process arguments
-    (source_dirs, start_date, end_date) = parse_args()
+    source_dirs, start_date, end_date, log_file_dir = parse_args()
 
     for dir in source_dirs:
         if not os.path.isdir(dir):
-            raise OSError('Directory does not exist: "{}". Quitting.'.format(dir))
+            raise OSError(f'Directory does not exist: "{dir}". Quitting.')
 
 
     for camera_dir in source_dirs:
@@ -118,7 +153,7 @@ def main():
                 # contains enough metadata to manage each image and create a correct
 
 
-                # print('Processing file: "{}"'.format(file_name))
+                # print(f'Processing file: "{file_name}"')
 
                 # check the file name for a hour and date in correct format
                 # e.g. 2018_10_25_11
@@ -134,58 +169,13 @@ def main():
                 if date_in_range(image_date, start_date, end_date):
 
                     file_parent_dir = os.path.dirname(file_name)
-                    tar_file_name = os.path.join(file_parent_dir, '{}_{}.tar'.format(os.path.basename(camera_dir), image_date))
+                    tar_file_name = os.path.join(file_parent_dir, f'{os.path.basename(camera_dir)}_{image_date}.tar')
 
                     try:
-                        tar = tarfile.open(tar_file_name, 'a')
-                    except Exception as e:
-                        print('Failed to open existing tar file for appending / create tar file for writing. Skipping. "{}"'.format(tar_file_name))
-
-                    # Dumb write to the tarfile.
-                    # Should probably check if the file is already in the archive (if archive exists)
-                    # - but that raises the task of comparing and deciding which file is correct...
-                    # maybe at least we could report on discrepancies?
-
-                    # need the full path to locate the current file to be written to archive,
-                    # but only write the base name to the archive (not full path)
-                    file_path = os.path.realpath(file_name)
-                    tar.add(file_path, arcname=os.path.basename(file_path))
-                    tar.close()
-
-
-
-    # List contents of tars and delete original files which were added.
-    print('Deleting the original copies of the archived files...')
-    for camera_dir in source_dirs:
-        for tar_file_name in glob.iglob(os.path.join(camera_dir, "**/*.tar"), recursive=True):
-
-            print(tar_file_name)
-
-            # get the path of the current file and change to its directory
-            #tar_path = os.path.realpath(tar_file_name)
-            # os.chdir(os.path.dirname(tar_file_name))
-
-            # fix permissions for the archive
-            # chmod_command = 'chmod ug=rw,o-rwx'
-            try:
-                os.chmod(tar_file_name, 0o0660)
-            except Exception as e:
-                print('Failed to modify tar file permissions. Skipping.')
-
-            try:
-                tar = tarfile.open(tar_file_name, 'r')
-            except Exception as e:
-                print('Failed to open existing tar file for reading. Skipping.')
-
-            tar_file_parent_dir = os.path.dirname(tar_file_name)
-            print('current dir for file: {}'.format(tar_file_parent_dir))
-
-            for archived_file in tar:
-                archived_file_name = os.path.join(tar_file_parent_dir, archived_file.name)
-                try:
-                    os.remove(archived_file_name)
-                except:
-                    print('Failed to delete "{}". Skipping.'.format(archived_file_name))
+                        archive(file_name, tar)
+                        # archive_and_remove(file_name, tar) - not in use. note: would need to test removal on real data
+                    except IOError:
+                        print(f'Skipping {file_name}')
 
     print('Done.')
 
