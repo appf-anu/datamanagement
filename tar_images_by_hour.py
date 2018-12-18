@@ -42,6 +42,7 @@ if sys.version_info.minor < 5:
 # regex to match date in file name format e.g. GC02L_2016_04_28_16_35_00.jpg
 # allow year to 2099
 date_regex = re.compile('20[1-9][0-9]_[0-1][0-9]_[0-3][0-9]')
+datehour_regex = re.compile('20[1-9][0-9]_[0-1][0-9]_[0-3][0-9]_[0-1][0-9]')
 
 extensions_to_include = ['.jpg','.cr2', '.jpeg', '.tiff', '.tif']
 
@@ -74,7 +75,9 @@ def parse_args():
         help='Start of date range to process (inclusive).')
     parser.add_argument('-e', '--end', metavar='end date', type=str, required=False,
         help='End of date range to process (inclusive).')
-    parser.add_argument('dirs', metavar='camera dir/s', type=str, nargs='+',
+    parser.add_argument('-o', '--output', metavar='output_dir', type=str, required=False,
+        help='Camera directory to process.')
+    parser.add_argument('dirs', metavar='camera_dir/s', type=str, nargs='+',
         help='Camera directory to process.')
     args = parser.parse_args()
 
@@ -82,9 +85,10 @@ def parse_args():
         if args.end < args.start:
             raise ValueError('End date must not be less than start date. Quitting.')
 
-    return args.dirs, args.start, args.end
+    # note: return whether the output dir has been set
+    return args.dirs, args.output is not None, args.output, args.start, args.end
 
-def archive(file_name, tar):
+def archive(file_name, tar_file_name):
     """
     Dumb write to the tarfile.
     Should probably check if the file is already in the archive (if archive exists)
@@ -101,7 +105,7 @@ def archive(file_name, tar):
 
 
 # not in use
-def archive_and_remove(file_name, tar):
+def archive_and_remove(file_name, tar_file_name):
     """
     Dumb write to the tarfile.
     Should probably check if the file is already in the archive (if archive exists)
@@ -133,17 +137,20 @@ def main():
       files, since they are now archived
     """
     # process arguments
-    source_dirs, start_date, end_date, log_file_dir = parse_args()
+    source_dirs, is_od_set, output_dir, start_date, end_date, log_file_dir = parse_args()
 
+    if not os.path.isdir(output_dir):
+        raise OSError(f'Directory does not exist: "{output_dir}". Quitting.')
     for dir in source_dirs:
         if not os.path.isdir(dir):
             raise OSError(f'Directory does not exist: "{dir}". Quitting.')
 
-
     for camera_dir in source_dirs:
+
         file_list = [os.path.join(camera_dir, "**/*"+x) for x in extensions_to_include]
         print ('Search terms:', end=' ')
         print (file_list, '\n')
+
         for file_path in file_list:
             for file_name in glob.iglob(file_path, recursive=True):
                 # iglob returns an iterable of file paths (str) matching the required image extensions,
@@ -164,12 +171,17 @@ def main():
                     #print('Skipping file that doesn\'t match.')
                     continue  # skip any files which don't include a date in the name
 
-                # determine whether the date of the file falls within the specified
-                # date range
                 if date_in_range(image_date, start_date, end_date):
 
                     file_parent_dir = os.path.dirname(file_name)
-                    tar_file_name = os.path.join(file_parent_dir, f'{os.path.basename(camera_dir)}_{image_date}.tar')
+                    if not is_od_set:
+                        output_dir = file_parent_dir  # tar in place
+                    datehour_match = datehour_regex.search(file_name)
+                    if datehour_match:
+                        image_datehour = datehour_match.group() # get the image date from the file name
+                    else:
+                        continue  # skip any files which don't include a date in the name
+                    tar_file_name = os.path.join(output_dir, f'{os.path.basename(camera_dir)}_{image_datehour}.tar')
 
                     try:
                         archive(file_name, tar)
