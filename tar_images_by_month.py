@@ -172,8 +172,6 @@ def main():
                 if date_in_range(image_date, start_date, end_date):
 
                     file_parent_dir = os.path.dirname(file_name)
-                    if not is_od_set:
-                        output_dir = file_parent_dir  # tar in place
                     month_match = month_regex.search(file_name)
                     image_month = datehour_match.group() # get the image date from the file name
                     tar_file_name = os.path.join(output_dir, f'{os.path.basename(camera_dir)}_{image_month}.tar')
