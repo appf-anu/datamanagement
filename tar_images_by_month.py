@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 
 """
-Tar images for a given camera dir by hour, putting the tar in the same dir.
-Then delete the images, keeping only the tar (to save inodes).
-Main purpose is to use this on gigavision directories.
+Tar images for a given camera dir by month, putting the tar in the specified output dir.
+Main purpose is to use this on picam directories.
+
+Does not remove original files.
 
 User optionally provides start and end dates for the process.
 
@@ -16,12 +17,10 @@ file names of the images.
 
 Does not check if file is already in archive.
 
-Removes the original files (only ones that are listed in an archive).
-
 Provides recursive directory search, so supports both nested and flat structures.
 
 Usage example
-./tar_images_by_hour --start 2018_10_25 --end 2018_12_25 kioloa-hill-GV01
+./tar_images_by_month.py --output archive_picam_for_backup GC037L
 
 """
 
@@ -42,7 +41,7 @@ if sys.version_info.minor < 5:
 # regex to match date in file name format e.g. GC02L_2016_04_28_16_35_00.jpg
 # allow year to 2099
 date_regex = re.compile('20[1-9][0-9]_[0-1][0-9]_[0-3][0-9]')
-datehour_regex = re.compile('20[1-9][0-9]_[0-1][0-9]_[0-3][0-9]_[0-1][0-9]')
+month_regex = re.compile('20[1-9][0-9]_[0-1][0-9]')
 
 extensions_to_include = ['.jpg','.cr2', '.jpeg', '.tiff', '.tif']
 
@@ -75,7 +74,7 @@ def parse_args():
         help='Start of date range to process (inclusive).')
     parser.add_argument('-e', '--end', metavar='end date', type=str, required=False,
         help='End of date range to process (inclusive).')
-    parser.add_argument('-o', '--output', metavar='output_dir', type=str, required=False,
+    parser.add_argument('-o', '--output', metavar='output_dir', type=str, required=True,
         help='Camera directory to process.')
     parser.add_argument('dirs', metavar='camera_dir/s', type=str, nargs='+',
         help='Camera directory to process.')
@@ -85,8 +84,7 @@ def parse_args():
         if args.end < args.start:
             raise ValueError('End date must not be less than start date. Quitting.')
 
-    # note: return whether the output dir has been set
-    return args.dirs, args.output is not None, args.output, args.start, args.end
+    return args.dirs, args.output, args.start, args.end
 
 def archive(file_name, tar_file_name):
     """
@@ -176,12 +174,9 @@ def main():
                     file_parent_dir = os.path.dirname(file_name)
                     if not is_od_set:
                         output_dir = file_parent_dir  # tar in place
-                    datehour_match = datehour_regex.search(file_name)
-                    if datehour_match:
-                        image_datehour = datehour_match.group() # get the image date from the file name
-                    else:
-                        continue  # skip any files which don't include a date in the name
-                    tar_file_name = os.path.join(output_dir, f'{os.path.basename(camera_dir)}_{image_datehour}.tar')
+                    month_match = month_regex.search(file_name)
+                    image_month = datehour_match.group() # get the image date from the file name
+                    tar_file_name = os.path.join(output_dir, f'{os.path.basename(camera_dir)}_{image_month}.tar')
 
                     try:
                         archive(file_name, tar_file_name)
