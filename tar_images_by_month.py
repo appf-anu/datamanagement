@@ -37,6 +37,8 @@ if sys.version_info.major != 3:
 if sys.version_info.minor < 5:
     raise RuntimeError('Python version 3, >= 3.5 required (uses iglob recursive).')
 
+# a simple lockfile to provide an easy way to test whether the process has finished
+lockfile = 'process_is_still_running'
 
 # regex to match date in file name format e.g. GC02L_2016_04_28_16_35_00.jpg
 # allow year to 2099
@@ -145,6 +147,12 @@ def main():
 
     for camera_dir in source_dirs:
 
+        lockfile = os.path.join(output_dir, f'{camera_dir}_{lockfile}_{os.getpid()}')
+        try:
+            open(lockfile, 'w').close()
+        except:
+            print(f'Failed to create lockfile {lockfile}.')
+
         file_list = [os.path.join(camera_dir, "**/*"+x) for x in extensions_to_include]
         print ('Search terms:', end=' ')
         print (file_list, '\n')
@@ -181,7 +189,10 @@ def main():
                         # archive_and_remove(file_name, tar) - not in use. note: would need to test removal on real data
                     except IOError:
                         print(f'Skipping {file_name}')
-
+        try:
+            os.remove(lockfile)
+        except:
+            print(f'Failed to remove lockfile {lockfile}.')
     print('Done.')
 
 
