@@ -137,7 +137,7 @@ def main():
       files, since they are now archived
     """
     # process arguments
-    source_dirs, is_od_set, output_dir, start_date, end_date, log_file_dir = parse_args()
+    source_dirs, is_od_set, output_dir, start_date, end_date = parse_args()
 
     if not os.path.isdir(output_dir):
         raise OSError(f'Directory does not exist: "{output_dir}". Quitting.')
