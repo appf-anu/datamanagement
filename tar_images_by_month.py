@@ -173,7 +173,7 @@ def main():
 
                     file_parent_dir = os.path.dirname(file_name)
                     month_match = month_regex.search(file_name)
-                    image_month = datehour_match.group() # get the image date from the file name
+                    image_month = month_match.group() # get the image date from the file name
                     tar_file_name = os.path.join(output_dir, f'{os.path.basename(camera_dir)}_{image_month}.tar')
 
                     try:
