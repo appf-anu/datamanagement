@@ -107,12 +107,12 @@ def parse_date(datestamp):
     return datetime.datetime.strptime(datestamp, "%Y_%m_%d_%H_%M_%S")
 
 
-def path_within_archive(datestamp, imagepath):
+def path_within_archive(datestamp, imagepath, camname):
     """Gets path for timestream image.
     """
     dt = parse_date(datestamp)
     imgbasename = op.basename(imagepath) # include ext
-    path = f"%Y/%Y_%m/%Y_%m_%d/%Y_%m_%d_%H/{imgbasename}"
+    path = f"{camname}/%Y/%Y_%m/%Y_%m_%d/%Y_%m_%d_%H/{imgbasename}"
     path = dt.strftime(path)
     return path
 
@@ -134,6 +134,8 @@ def archive_path(outdir, datetime, camname, bundle="hour", format="jpg"):
         bpath = f"%Y/%Y_%m/%Y_%m_%d/%Y_%m_%d_%H/{camname}_%Y_%m_%d_%H_%M_%S.{format}.zip"
     else:
         raise ValueError(f"Invalid bundle level: {bundle}")
+    #k if basename(outdir.rstrip("/")) != camname:
+    #k     outdir = op.join(outdir, camname)
     return op.join(outdir, datetime.strftime(bpath))
 
 
@@ -146,6 +148,7 @@ def date_in_range(date: str, lower_bound: str, upper_bound: str):
     String date format assumed to be 'YYYY_MM_DD' e.g. '2018_10_25'. Relies on
     dates stored as strings specified year-first sorting the same way as real dates.
     """
+    date = '_'.join(date.split('_')[0:2]) # FIXME: horrible hack, our dates include time now
 
     if lower_bound is None and upper_bound is None:
         return True
@@ -176,6 +179,10 @@ def parse_args():
         help='Camera directory to process.')
     args = parser.parse_args()
 
+    if args.start_date == "":
+        args.start_date = None
+    if args.end_date == "":
+        args.end_date = None
     if args.start_date is not None and args.end_date is not None:
         if args.end_date < args.start_date:
             raise ValueError('End date must not be less than start date. Quitting.')
@@ -207,7 +214,10 @@ def main():
         print(f'Directory does not exist: "{args.output}". Quitting.', file=sys.stderr)
         sys.exit(1)
     elif not op.isdir(args.output):
-        os.mkdir(args.output)
+        try:
+            os.mkdir(args.output)
+        except FileExistsError:
+            pass
 
     if not op.isdir(args.camera_dir):
         print(f'Directory does not exist: "{args.camera_dir}". Quitting.', file=sys.stderr)
@@ -240,7 +250,7 @@ def main():
 
             zip_path = archive_path(args.output, image_date, camera_name,
                                     bundle=args.bundle, format=args.format)
-            subpath = path_within_archive(image_date, file_name)
+            subpath = path_within_archive(image_date, file_name, camera_name)
             try:
                 zip_dir = op.dirname(zip_path)
                 os.makedirs(zip_dir)
