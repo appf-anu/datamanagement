@@ -186,7 +186,7 @@ def parse_args():
     if args.start_date is not None and args.end_date is not None:
         if args.end_date < args.start_date:
             raise ValueError('End date must not be less than start date. Quitting.')
-    args.format = args.format.lstrip(".")
+    args.format = args.format.lstrip(".").lower()
     return args
 
 
@@ -201,10 +201,6 @@ def main():
     - Fix the permissions for the zip file
     - For each zipfile, list the files contained; use the list to delete the original
       files, since they are now archived
-
-    KNOWN ISSUES:
-        - jpg doesn't catch jpeg, raw doesn't catch *.cr2; tif doesn't catch
-        tiff
     """
     # process arguments
     args = parse_args()
@@ -227,7 +223,9 @@ def main():
     sig_handler = SigHandler()
 
     allowed_exts = set([args.format.lower()])
-    if args.format == "jpg":
+    if args.format in ["jpg", "jpeg"]:
+        allowed_exts = set(["jpg", "jpeg"])
+    elif args.format in ["tif", "tiff"]:
         allowed_exts = set(["jpg", "jpeg"])
 
     print(f"Processing '{camera_name}'")

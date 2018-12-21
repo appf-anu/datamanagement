@@ -20,6 +20,7 @@ source /g/data1/xe2/.profile
 module load python3/3.6.2
 
 set -xeuo pipefail
+echo CAMPATH: "${CAMPATH}"	CAMERA: "${CAMERA}"	STARTDATE: "${STARTDATE}"	ENDDATE: "${ENDDATE}"	FORMAT: "${FORMAT}" 
 
 # Self-submit?
 NEXT=$(qsub -W depend=afterany:$PBS_JOBID \
@@ -27,8 +28,9 @@ NEXT=$(qsub -W depend=afterany:$PBS_JOBID \
             "$THIS_SCRIPT")
 
 # fix permissions. Here because we don't get to below until whole thing is done
-find "$DEST/$CAMERA" -type d -user $USER -exec chmod ug=rwx {} \;
-find "$DEST/$CAMERA" -type f -user $USER -exec chmod ug=rw {} \;
+mkdir -p "$DEST/$CAMERA"
+find "$DEST/$CAMERA" -type d -user $USER -exec chmod ug=rwx {} \; || true
+find "$DEST/$CAMERA" -type f -user $USER -exec chmod ug=rw {} \; || true
 
 $WORKDIR/code/zip-bundler.py \
     --start-date "$STARTDATE" \
@@ -36,11 +38,11 @@ $WORKDIR/code/zip-bundler.py \
     --format "$FORMAT" \
     --output "$DEST/$CAMERA" \
     --bundle day \
-    "$CAMPATH" >>"/g/data1a/xe2/phenomics/camupload-backups/log/${CAMERA}_${FORMAT}.log"
+    "$CAMPATH" >>"/g/data1a/xe2/phenomics/camupload-backups/log/${CAMERA}_${FORMAT}.log" 2>&1
 
 # fix permissions again
-find "$DEST/$CAMERA" -type d -user $USER -exec chmod ug=rwx {} \;
-find "$DEST/$CAMERA" -type f -user $USER -exec chmod ug=rw {} \;
+find "$DEST/$CAMERA" -type d -user $USER -exec chmod ug=rwx {} \; || true
+find "$DEST/$CAMERA" -type f -user $USER -exec chmod ug=rw {} \; || true
 
 # Self-submit?
 if [ -n "${NEXT:-}" ]
