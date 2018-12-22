@@ -1,35 +1,15 @@
 #!/usr/bin/env python3
-
-"""
-By Ellen Levingston, 2018-19
-
-Zip images for a given camera dir by month, putting the zipfile in the specified output dir.
-Main purpose is to use this on picam directories.
-
-Does not remove original files.
-
-User optionally provides start and end dates for the process.
-
-Zips files by type, so that jpgs, tifs, cr2s each get their own zip. Relies on
-file name extensions being correct. Only zips files which contain a timestamp in
-the name.
-
-Zip files are named form the camera dir provided for processing, not from the
-file names of the images.
-
-Does not check if file is already in archive.
-
-Provides recursive directory search, so supports both nested and flat structures.
-
-Usage example
-./zip_images_by_month.py --output archive_picam_for_backup GC037L
-
-"""
+# Copyright 2018-2019 Ellen Levingston
+# Copyright 2018-2019 Kevin Murray
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 import sys
 import os
 import os.path as op
 import signal
+from stat import *
 import glob
 import re
 import zipfile
@@ -52,15 +32,15 @@ class SigHandler(object):
 class LockFile(object):
     def __init__(self, lockpath):
         self.path = lockpath
+
     def __enter__(self, *args):
         if op.exists(self.path):
             raise RuntimeError(f"Can't lock {self.path}")
         with open(self.path, "w") as f:
             pass
+
     def __exit__(self, *args):
         os.unlink(self.path)
-
-
 
 
 def path_is_timestream_file(path, extensions=None):
@@ -161,6 +141,23 @@ def date_in_range(date: str, lower_bound: str, upper_bound: str):
     return True
 
 
+def outdated_in_archive(zip, source_path, arcname):
+    """Determines if `source_path` should be inserted into `zip` (a writeable
+    ZipFile instance) as `arcname`.
+
+    Checks file size and modification date. If file sizes differ, or the
+    modification time of the file in the archive is older, returns true. If
+    there is no file named `arcname` in the zip, always return true.
+    """
+    try:
+        arc_zi = zip.getinfo(arcname)
+    except KeyError:
+        return True  # Not in archive, always insert
+    src_zi = zipfile.ZipInfo.from_file(source_path, arcname)
+    return (arc_zi.file_size != src_zi.file_size  or
+            arc_zi.date_time < src_zi.date_time)
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description = 'Zip images for a '
         'given camera dir by hour, putting the zip in the same dir. '
@@ -169,6 +166,8 @@ def parse_args():
         help='Start of date range to process (inclusive).')
     parser.add_argument('-e', '--end-date', metavar='end date', type=str, required=False,
         help='End of date range to process (inclusive).')
+    parser.add_argument('--force', action="store_true",
+        help="Always insert files into archives, even if they're already there")
     parser.add_argument('-f', '--format', metavar='extension', type=str, default="jpg",
         help='File format to process (case insensitive, jpg will also catch *.jpeg, tif will also catch *.tiff)')
     parser.add_argument('-o', '--output', metavar='output_dir', type=str, required=True,
@@ -193,15 +192,8 @@ def parse_args():
 def main():
     """
     Zip up applicable files in the specified dirs, within the specified range
-
-    - Use iglob to locate files which match the file extension search criteria (image files).
-    - Use regex to target appropriately named files (must include a timestamp, down to hour)
-    - Only include files where the timestamp (in the name) is within the user-specified range (if given)
-    - After zipping is finished, use iglob to locate all zipfiles
-    - Fix the permissions for the zip file
-    - For each zipfile, list the files contained; use the list to delete the original
-      files, since they are now archived
     """
+
     # process arguments
     args = parse_args()
     camera_name = op.basename(args.camera_dir.rstrip('/'))
@@ -256,16 +248,24 @@ def main():
                 pass
             try:
                 with LockFile(zip_path + ".lock"):
-                    with zipfile.ZipFile(zip_path, 'a') as zip:
-                        if subpath not in zip.namelist():
+                    # This is now two steps, to avoid writing to & updating
+                    # zips that we skip. Makes syncing to massdata more efficient
+                    should_write = False
+                    try:
+                        with zipfile.ZipFile(zip_path, 'r') as zip:
+                            should_write = outdated_in_archive(zip, file_path, subpath) or args.force
+                    except (IOError, zipfile.BadZipFile, OSError):
+                        should_write = True
+
+                    if should_write:
+                        with zipfile.ZipFile(zip_path, 'a') as zip:
                             zip.write(file_path, arcname=subpath, compress_type=None)
-                            print(f"Added {file_name} to {zip_path}")
-                        else:
-                            print(f"{file_name} already in {zip_path}, skipping")
-            except IOError as exc:
-                print(f'Error ({str(exc)}), skipping {file_path}', file=sys.stderr)
-            except zipfile.BadZipFile as exc:
-                print(f'Bad zip file ({str(exc)}) for {zip_path}. Skipping', file=sys.stderr)
+                        os.chmod(zip_path, S_IRUSR | S_IWUSR | S_IRGRP |S_IWGRP)
+                        print(f"Added {file_name} to {zip_path}")
+                    else:
+                        print(f"{file_name} already in {zip_path}, skipping")
+            except (IOError, ValueError, zipfile.BadZipFile, OSError) as exc:
+                print(f'ERROR ({type(exc)}: {str(exc)}), skipping {file_path}')
 
             # here's a safe place to exit if set kill signal
             if sig_handler.kill_now:

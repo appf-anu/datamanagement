@@ -43,6 +43,7 @@ $WORKDIR/code/zip-bundler.py \
 # fix permissions again
 find "$DEST/$CAMERA" -type d -user $USER -exec chmod ug=rwx {} \; || true
 find "$DEST/$CAMERA" -type f -user $USER -exec chmod ug=rw {} \; || true
+find /g/data1a/xe2/phenomics/camupload-backups/log -type f -user $USER -exec chmod ug=rw {} \; || true
 
 # Self-submit?
 if [ -n "${NEXT:-}" ]

@@ -3,11 +3,11 @@ mkdir -p /g/data/xe2/phenomics/camupload-backups/
 START=2000_01_01
 END=2020_01_01
 CAMUPLOAD=/g/data/xe2/phenomics/camupload
-#CAMERAS=("GC36L" "GC36R")
-#CAMERAS=$(echo GC{02,03,04,05,35,36,37}-Picam GC36L GC36R)
-CAMERAS=$(echo GC{02,03,04,05,35,36,37}{L,R,-Picam})
+CAMERAS=$(echo GC{02,03,04,05,35,36,37}{L,R,-Picam} BK{04,07}{L,R,-Picam} GC37L-NIR-C01 GC37R-NIR-C02 Eucalyptus02-Cam01 Eucalyptus02-Picam Eucalyptus02-Cam02)
+CAMERAS=GC37-Picam
 
 set -e
+trap "exit 1" INT
 
 for CAMERA in $CAMERAS
 do

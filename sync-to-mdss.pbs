@@ -15,11 +15,12 @@ WORKDIR=/g/data/xe2/phenomics/backups-working-dir/
 THIS_SCRIPT=$WORKDIR/code/sync-to-mdss.pbs
 MDSSDEST=phenomics/temporary-backups/picam/
 BACKUPDIR=/g/data/xe2/phenomics/camupload-backups/
+CAMERAS=$(echo GC{02,03,04,05,35,36,37}{L,R,-Picam} BK{04,07}{L,R,-Picam} GC37L-NIR-C01 GC37R-NIR-C02 Eucalyptus02-Cam01 Eucalyptus02-Picam Eucalyptus02-Cam02)
 
 cd $BACKUPDIR
 
 set -e
-for cam in $(echo GC{02,03,04,05,35,36,37}{L,R,-Picam})
+for cam in $CAMERAS
 do
     if [ ! -d $cam ]
     then
