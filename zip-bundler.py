@@ -148,14 +148,31 @@ def outdated_in_archive(zip, source_path, arcname):
     Checks file size and modification date. If file sizes differ, or the
     modification time of the file in the archive is older, returns true. If
     there is no file named `arcname` in the zip, always return true.
+
+    Warns if file is in archive but is outdated, as this is not supported.
+    Removing the offending zip file and re-running is the only way to fix this
+    at the moment. FIXME
     """
+    def zd(zipinfo_date):
+        y, m, d, H, M, S = zipinfo_date
+        return f"{y}-{m}-{d} {H}:{M}:{S}"
+
     try:
         arc_zi = zip.getinfo(arcname)
     except KeyError:
         return True  # Not in archive, always insert
+
     src_zi = zipfile.ZipInfo.from_file(source_path, arcname)
-    return (arc_zi.file_size != src_zi.file_size  or
-            arc_zi.date_time < src_zi.date_time)
+    if src_zi.date_time[5] % 2 == 1:
+        # This is completely insane, zip files have 2sec resoultion of times.
+        # This isn't accounted for in ZI.from_file, and therefore files will be
+        # considered stale if they were last updated on an odd second.
+        # Therefore, subtract one from the seconds if seconds are odd.
+        y, m, d, H, M, S = src_zi.date_time
+        src_zi.date_time = (y, m, d, H, M, S-1)
+    if (arc_zi.file_size != src_zi.file_size  or arc_zi.date_time < src_zi.date_time):
+        raise ValueError(f"'{arcname}'  is stale: Archive {arc_zi.file_size}b {zd(arc_zi.date_time)}; Filesystem {src_zi.file_size}b {zd(src_zi.date_time)}")
+    return False
 
 
 def parse_args():
@@ -265,7 +282,7 @@ def main():
                     else:
                         print(f"{file_name} already in {zip_path}, skipping")
             except (IOError, ValueError, zipfile.BadZipFile, OSError) as exc:
-                print(f'ERROR ({type(exc)}: {str(exc)}), skipping {file_path}')
+                print(f'ERROR ({type(exc).__name__}: {str(exc)}), skipping {file_path}')
 
             # here's a safe place to exit if set kill signal
             if sig_handler.kill_now:
