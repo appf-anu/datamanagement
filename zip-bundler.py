@@ -79,7 +79,7 @@ def extract_datetime(path):
     if m is None:
         return path
     else:
-        return m[0]
+        return m[1]
 
 def parse_date(datestamp):
     if isinstance(datestamp, datetime.datetime):
