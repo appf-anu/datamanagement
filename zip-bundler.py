@@ -231,11 +231,11 @@ def main():
     # create a signal handler to enable program to exit gracefully if process is killed
     sig_handler = SigHandler()
 
-    allowed_exts = set([args.format.lower()])
+    allowed_exts = set([args.format])
     if args.format in ["jpg", "jpeg"]:
         allowed_exts = set(["jpg", "jpeg"])
     elif args.format in ["tif", "tiff"]:
-        allowed_exts = set(["jpg", "jpeg"])
+        allowed_exts = set(["tif", "tiff"])
 
     print(f"Processing '{camera_name}'")
 

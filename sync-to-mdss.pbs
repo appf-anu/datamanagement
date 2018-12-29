@@ -11,40 +11,59 @@
 #PBS -m abe
 #PBS -W umask=002
 
-WORKDIR=/g/data/xe2/phenomics/backups-working-dir/
-THIS_SCRIPT=$WORKDIR/code/sync-to-mdss.pbs
-MDSSDEST=phenomics/temporary-backups/picam/
-BACKUPDIR=/g/data/xe2/phenomics/camupload-backups/
-CAMERAS=$(echo GC{02,03,04,05,35,36,37}{L,R,-Picam} BK{04,07}{L,R,-Picam} GC37L-NIR-C01 GC37R-NIR-C02 Eucalyptus02-Cam01 Eucalyptus02-Picam Eucalyptus02-Cam02)
-
-cd $BACKUPDIR
 
 set -e
-for cam in $CAMERAS
+WORKDIR=/g/data/xe2/phenomics/backups-working-dir/
+THIS_SCRIPT=$WORKDIR/code/sync-to-mdss.pbs
+NEXT=$(qsub -W depend=afterany:$PBS_JOBID "$THIS_SCRIPT")
+
+(for camtype in picam gigavision
 do
-    if [ ! -d $cam ]
+    BACKUPDIR=/g/data/xe2/phenomics/camupload-backups/$camtype/
+    MDSSDEST=phenomics/temporary-backups/$camtype/
+    if [ ! -d $BACKUPDIR ]
     then
+        echo "WARNING: $camtype directory doesn't exist, skipping"
         continue
     fi
-    for archive in $(find $cam -iname \*.zip | sort)
+
+    CAMERAS=$(ls -1 $BACKUPDIR | grep -v '^log$')
+
+    cd $BACKUPDIR
+
+    for cam in $CAMERAS
     do
-
-        echo -n $(basename "$archive") " "
-
-        chmod ug=rwx,o= "$archive" || true
-
-        here=$(ls -l "$archive" | cut -f 5-8 -d " ")
-        remote=$( mdss ls -l "$MDSSDEST/$archive" 2>/dev/null | cut -f 5-8 -d " " || true )
-        
-        if [ "$here" == "$remote" ]
+        if [ ! -d $cam ]
         then
-            echo "skip"
             continue
         fi
+        for archive in $(find $cam -iname \*.zip | sort)
+        do
 
-        destdir=$(dirname "$MDSSDEST/$archive")
-        mdss mkdir -m 770 "$destdir"
-        mdss put "$archive" "$destdir"
-        echo "sync"
+            echo -n $(basename "$archive") " "
+
+            chmod ug=rw,o= "$archive" || true
+
+            here=$(ls -l "$archive" | cut -f 5-8 -d " ")
+            remote=$( mdss ls -l "$MDSSDEST/$archive" 2>/dev/null | cut -f 5-8 -d " " || true )
+            
+            if [ "$here" == "$remote" ]
+            then
+            echo "skip"
+            continue
+            fi
+
+            destdir=$(dirname "$MDSSDEST/$archive")
+            mdss mkdir -m 770 "$destdir"
+            mdss put "$archive" "$destdir"
+            echo "sync"
+        done
     done
 done
+) |& tee -a /g/data/xe2/phenomics/camupload-backups/log/mdss-sync.log
+
+# Self-submit?
+if [ -n "${NEXT:-}" ]
+then
+    qdel $NEXT
+fi

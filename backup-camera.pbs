@@ -14,17 +14,16 @@
 WORKDIR=/g/data/xe2/phenomics/backups-working-dir/
 THIS_SCRIPT=$WORKDIR/code/backup-camera.pbs
 CAMUPLOAD=/g/data/xe2/phenomics/camupload
-DEST=/g/data/xe2/phenomics/camupload-backups/
 
 source /g/data1/xe2/.profile
 module load python3/3.6.2
 
 set -xeuo pipefail
-echo CAMPATH: "${CAMPATH}"	CAMERA: "${CAMERA}"	STARTDATE: "${STARTDATE}"	ENDDATE: "${ENDDATE}"	FORMAT: "${FORMAT}" 
+echo CAMPATH: "${CAMPATH}"	CAMERA: "${CAMERA}"	STARTDATE: "${STARTDATE}"	ENDDATE: "${ENDDATE}"	FORMAT: "${FORMAT}"	DEST:	"${DEST}"
 
 # Self-submit?
 NEXT=$(qsub -W depend=afterany:$PBS_JOBID \
-            -v CAMPATH="${CAMPATH}",CAMERA="${CAMERA}",STARTDATE="${STARTDATE}",ENDDATE="${ENDDATE}",FORMAT="${FORMAT}" \
+            -v CAMPATH="${CAMPATH}",CAMERA="${CAMERA}",STARTDATE="${STARTDATE}",ENDDATE="${ENDDATE}",FORMAT="${FORMAT}",DEST="${DEST}" \
             "$THIS_SCRIPT")
 
 # fix permissions. Here because we don't get to below until whole thing is done
@@ -50,4 +49,3 @@ if [ -n "${NEXT:-}" ]
 then
     qdel $NEXT
 fi
-
