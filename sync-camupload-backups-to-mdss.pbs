@@ -15,7 +15,7 @@
 
 set -e
 WORKDIR=/g/data/xe2/phenomics/backups-working-dir/
-THIS_SCRIPT=$WORKDIR/code/sync-to-mdss.pbs
+THIS_SCRIPT=$WORKDIR/code/sync-camupload-backups-to-mdss.pbs
 NEXT=$(qsub -W depend=afterany:$PBS_JOBID "$THIS_SCRIPT")
 
 (for camtype in picam gigavision

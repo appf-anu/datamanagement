@@ -13,11 +13,16 @@
 #PBS -W umask=002
 
 WORKDIR=/g/data/xe2/phenomics/datamanagement-workspace
-THIS_SCRIPT=$WORKDIR/code/datamgmt/tarball-gigavision.pbs
-CAMUPLOAD=/g/data/xe2/phenomics/camupload
+THIS_SCRIPT=$WORKDIR/code/datamgmt/gigavision/tarball-gigavision.pbs
+CAMUPLOAD=
 
 # Self-submit?
 NEXT=$(qsub -W depend=afterany:$PBS_JOBID "$THIS_SCRIPT")
+
+$WORKDIR/code/datamgmt/gigavision/gigavision-tarballer.sh \
+    /g/data/xe2/phenomics/camupload/gigavision/ARB-GV-ANU-HILL-C01 \
+    /g/data/xe2/phenomics/camupload/gigavision/kioloa-hill-GV01/ |& \
+    tee -a /g/data1a/xe2/phenomics/datamanagement-workspace/logs/tarball-gigavision/tarball-gv.log
 
 # Self-submit?
 if [ -n "${NEXT:-}" ]
