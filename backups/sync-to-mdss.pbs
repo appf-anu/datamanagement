@@ -9,6 +9,7 @@
 #PBS -o /g/data1a/xe2/phenomics/camupload-backups/log
 #PBS -e /g/data1a/xe2/phenomics/camupload-backups/log
 #PBS -m abe
+#PBS -M pbs@kdmurray.id.au,m6b6j7n4m7x0o5x6@bvz-traitcapture.slack.com
 #PBS -W umask=002
 
 
