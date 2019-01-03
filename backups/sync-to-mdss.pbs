@@ -1,0 +1,70 @@
+#!/bin/bash
+#PBS -P xe2
+#PBS -q copyq
+#PBS -l ncpus=1
+#PBS -l walltime=10:00:00
+#PBS -l other=gdata1
+#PBS -l mem=2G
+#PBS -l wd
+#PBS -o /g/data1a/xe2/phenomics/camupload-backups/log
+#PBS -e /g/data1a/xe2/phenomics/camupload-backups/log
+#PBS -m abe
+#PBS -M pbs@kdmurray.id.au,m6b6j7n4m7x0o5x6@bvz-traitcapture.slack.com
+#PBS -W umask=002
+
+
+set -e
+WORKDIR=/g/data/xe2/phenomics/backups-working-dir/
+THIS_SCRIPT=$WORKDIR/code/sync-to-mdss.pbs
+NEXT=$(qsub -W depend=afterany:$PBS_JOBID "$THIS_SCRIPT")
+
+(for camtype in picam gigavision
+do
+    BACKUPDIR=/g/data/xe2/phenomics/camupload-backups/$camtype/
+    MDSSDEST=phenomics/temporary-backups/$camtype/
+    if [ ! -d $BACKUPDIR ]
+    then
+        echo "WARNING: $camtype directory doesn't exist, skipping"
+        continue
+    fi
+
+    CAMERAS=$(ls -1 $BACKUPDIR | grep -v '^log$')
+
+    cd $BACKUPDIR
+
+    for cam in $CAMERAS
+    do
+        if [ ! -d $cam ]
+        then
+            continue
+        fi
+        for archive in $(find $cam -iname \*.zip | sort)
+        do
+
+            echo -n $(basename "$archive") " "
+
+            chmod ug=rw,o= "$archive" || true
+
+            here=$(ls -l "$archive" | cut -f 5-8 -d " ")
+            remote=$( mdss ls -l "$MDSSDEST/$archive" 2>/dev/null | cut -f 5-8 -d " " || true )
+            
+            if [ "$here" == "$remote" ]
+            then
+            echo "skip"
+            continue
+            fi
+
+            destdir=$(dirname "$MDSSDEST/$archive")
+            mdss mkdir -m 770 "$destdir"
+            mdss put "$archive" "$destdir"
+            echo "sync"
+        done
+    done
+done
+) |& tee -a /g/data/xe2/phenomics/camupload-backups/log/mdss-sync.log
+
+# Self-submit?
+if [ -n "${NEXT:-}" ]
+then
+    qdel $NEXT
+fi

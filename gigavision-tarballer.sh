@@ -25,7 +25,6 @@ do
     fi
 done
 
-
 set -xeo pipefail
 
 for camdir in "$@"
@@ -34,7 +33,7 @@ do
     cam=$(basename $camdir)
     echo DOING $camdir "($cam)"
 
-    for hourdir in $(find $camdir -links 2 -type d)
+    for hourdir in $(find $camdir -links 2 -type d -not -path *2019*) # bad hack, so that we don't do current data
     do
         # I called this hour, but note it actually includes the date, e.g. 2018_10_22_12
         hour="$(basename $hourdir)"
@@ -46,13 +45,6 @@ do
         # create separate archive files for jpgs and tifs
         for ext in jpg tif
         do
-            if [ $ext == "jpg" ]
-            then
-                pattern="-iname *.jpg -iname *.jpeg"
-            elif [ $ext == "tif" ]
-            then
-                pattern="-iname *.tif -iname *.tiff"
-            fi
 
             archive="${cam}_${hour}_${ext}.tar"
 
@@ -63,14 +55,21 @@ do
                 tarmode="--create"
             fi
 
-            # tar flat, without including any directory structure
-            # tar jpgs and tifs separately
-            files=$(find . -type f -maxdepth 1 $pattern)
+            # find files
+            if [ $ext == "jpg" ]
+            then
+                files=$(find . -maxdepth 1 -type f -iname '*.jpg' -or -iname '*.jpeg')
+            elif [ $ext == "tif" ]
+            then
+                files=$(find . -maxdepth 1 -type f -iname '*.tif' -or -iname '*.tiff')
+            fi
             if [ -z "$files" ]
             then
                 continue
             fi
 
+            # tar flat, without including any directory structure
+            # tar jpgs and tifs separately
             tar $tarmode -v -f $archive $files
 
             # List files from tar for deletion | skip directories (end with /) | \
