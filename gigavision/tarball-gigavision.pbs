@@ -12,9 +12,9 @@
 #PBS -M pbs@kdmurray.id.au,m6b6j7n4m7x0o5x6@bvz-traitcapture.slack.com
 #PBS -W umask=002
 
-CODEDIR=/g/data/xe2/phenomics/datamanagement-workspace/code/datamgmt/gigavision/
+set -e
+CODEDIR=/g/data/xe2/phenomics/datamanagement-workspace/code/gigavision/
 THIS_SCRIPT=$CODEDIR/tarball-gigavision.pbs
-CAMUPLOAD=
 
 # Self-submit?
 NEXT=$(qsub -W depend=afterany:$PBS_JOBID "$THIS_SCRIPT")
