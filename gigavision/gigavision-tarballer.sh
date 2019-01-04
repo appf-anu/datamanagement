@@ -45,12 +45,20 @@ do
         # create separate archive files for jpgs and tifs
         for ext in jpg tif
         do
-
             archive="${cam}_${hour}_${ext}.tar"
 
-            if [ -f $archive ]
+            if [ -f "$archive" ]
             then
-                tarmode="--append"
+                # the following checks if the archive file is corrupted. If so, recover files, and delete it then re-create
+                if [ -n "$(tar tf $archive 2>&1 >/dev/null  | grep  'Unexpected EOF in archive')" ]
+                then
+                    # this shouldn't change anything, and will ensure that if any files were deleted, we don't lose them
+                    tar xvf $archive --no-overwrite-dir --skip-old-files --same-permissions || true # it will fail
+                    rm -f $archive
+                    tarmode="--create"
+                else
+                    tarmode="--append"
+                fi
             else
                 tarmode="--create"
             fi
