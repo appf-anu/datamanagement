@@ -47,6 +47,19 @@ do
         do
             archive="${cam}_${hour}_${ext}.tar"
 
+            # find files first, then if there's no files we can skip somewhat time consuming steps that check for corrupted tarball
+            if [ $ext == "jpg" ]
+            then
+                files=$(find . -maxdepth 1 -type f -iname '*.jpg' -or -iname '*.jpeg')
+            elif [ $ext == "tif" ]
+            then
+                files=$(find . -maxdepth 1 -type f -iname '*.tif' -or -iname '*.tiff')
+            fi
+            if [ -z "$files" ]
+            then
+                continue
+            fi
+
             if [ -f "$archive" ]
             then
                 # the following checks if the archive file is corrupted. If so, recover files, and delete it then re-create
@@ -61,19 +74,6 @@ do
                 fi
             else
                 tarmode="--create"
-            fi
-
-            # find files
-            if [ $ext == "jpg" ]
-            then
-                files=$(find . -maxdepth 1 -type f -iname '*.jpg' -or -iname '*.jpeg')
-            elif [ $ext == "tif" ]
-            then
-                files=$(find . -maxdepth 1 -type f -iname '*.tif' -or -iname '*.tiff')
-            fi
-            if [ -z "$files" ]
-            then
-                continue
             fi
 
             # tar flat, without including any directory structure
