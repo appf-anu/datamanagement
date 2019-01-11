@@ -79,7 +79,6 @@ do
             # tar flat, without including any directory structure
             # tar jpgs and tifs separately
             tar $tarmode -v -f $archive $files
-            chmod ug=rw,o= $archive
 
             # List files from tar for deletion | skip directories (end with /) | \
             # null-delimit so xargs can do spaces | delete files in batches of 500

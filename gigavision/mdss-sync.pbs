@@ -1,0 +1,30 @@
+#!/bin/bash
+#PBS -P xe2
+#PBS -q copyq
+#PBS -l ncpus=1
+#PBS -l walltime=10:00:00
+#PBS -l other=gdata1
+#PBS -l mem=2G
+#PBS -o /g/data1a/xe2/phenomics/datamanagement-workspace/logs/tarball-gigavision/
+#PBS -e /g/data1a/xe2/phenomics/datamanagement-workspace/logs/tarball-gigavision/
+#PBS -m abe
+#PBS -M pbs@kdmurray.id.au,m6b6j7n4m7x0o5x6@bvz-traitcapture.slack.com
+#PBS -W umask=002
+
+set -eu
+CODEDIR=/g/data/xe2/phenomics/datamanagement-workspace/code/gigavision/
+THIS_SCRIPT=$CODEDIR/mdss-sync.pbs
+
+NEXT=$(qsub -W depend=afterany:$PBS_JOBID "$THIS_SCRIPT")
+
+cd /g/data/xe2/phenomics/camupload/gigavision/
+
+(find ARB-GV-ANU-HILL-C01/ kioloa-hill-GV01/ -name \*.tar -type f |                               \
+ xargs -I{} bash $CODEDIR/../mdss-rsync.sh {} phenomics/resources/cameras/gigavision/             \
+)|& tee -a /g/data1a/xe2/phenomics/datamanagement-workspace/logs/tarball-gigavision/mdss-sync.log
+
+# Self-submit?
+if [ -n "${NEXT:-}" ]
+then
+    qdel $NEXT
+fi

@@ -8,7 +8,7 @@ then
     exit 1
 fi
 
-set -eu
+set -euo pipefail
 SOURCES="${@:1:$# - 1}"
 MDSSDEST="${@: -1}"
 
@@ -18,34 +18,41 @@ then
     do="echo"
 fi
 
+function putfile {
+    echo -n $(basename "$1") " "
+    here=$(ls -l "$1" | cut -f 5-8 -d " ")
+    remote=$( mdss ls -l "$2" 2>/dev/null | cut -f 5-8 -d " " || true )
+
+    if [ "$here" == "$remote" ]
+    then
+        echo "skip"
+        continue
+    fi
+
+    destdir=$(dirname "$2")
+    $do chmod ug=rw,o= "$1" 2>/dev/null || true
+    $do mdss mkdir -m 770 "$destdir"
+    $do mdss put "$1" "$destdir"
+    echo "sync"
+}
+
 for src in $SOURCES
 do
-    if [ ! -d $src ]
+    if [ -d $src ]
     then
+        echo "Descending into directory: $src"
+        pushd "$(dirname "$src")" >/dev/null 2>&1
+        for file in $(find "$(basename "$src")" -type f | sort)
+        do
+
+            putfile "$file" "$MDSSDEST/$file"
+        done
+        popd >/dev/null 2>&1
+    elif [ -f $src ]
+    then
+        putfile "$src" "$MDSSDEST/$src"
+    else
         echo "ERROR: $src doesn't exist"
         exit 1
     fi
-    echo "Source: $src"
-    pushd "$(dirname "$src")" >/dev/null 2>&1
-    for file in $(find "$(basename "$src")" -type f | sort)
-    do
-        echo -n $(basename "$file") " "
-
-
-        here=$(ls -l "$file" | cut -f 5-8 -d " ")
-        remote=$( mdss ls -l "$MDSSDEST/$file" 2>/dev/null | cut -f 5-8 -d " " || true )
-
-        if [ "$here" == "$remote" ]
-        then
-            echo "skip"
-            continue
-        fi
-
-        destdir=$(dirname "$MDSSDEST/$file")
-        $do chmod ug=rw,o= "$file" || true
-        $do mdss mkdir -m 770 "$destdir"
-        $do mdss put "$file" "$destdir"
-        echo "sync"
-    done
-    popd >/dev/null 2>&1
 done
