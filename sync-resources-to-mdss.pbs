@@ -1,0 +1,30 @@
+#!/bin/bash
+#PBS -P xe2
+#PBS -q copyq
+#PBS -l ncpus=1
+#PBS -l walltime=10:00:00
+#PBS -l other=gdata1
+#PBS -l mem=2G
+#PBS -j oe
+#PBS -o /g/data1a/xe2/phenomics/datamanagement-workspace/logs/resources-sync/
+#PBS -m abe
+#PBS -M pbs@kdmurray.id.au,m6b6j7n4m7x0o5x6@bvz-traitcapture.slack.com
+#PBS -W umask=002
+
+set -xeuo pipefail
+APPF=/g/data1a/xe2/phenomics/
+mkdir -p $APPF/datamanagement-workspace/logs/resources-sync/
+CODEDIR=$APPF/datamanagement-workspace/code/
+THIS_SCRIPT=$CODEDIR/sync-resources-to-mdss.pbs
+
+
+NEXT=$(qsub -W depend=afterany:$PBS_JOBID "$THIS_SCRIPT")
+
+bash $CODEDIR/mdss-rsync.sh $APPF/resources/cameras phenomics/resources/ >/g/data1a/xe2/phenomics/datamanagement-workspace/logs/resources-sync/$PBS_JOBID.log 2>&1
+
+# Self-submit?
+if [ -n "${NEXT:-}" ]
+then
+    qdel $NEXT
+fi
+

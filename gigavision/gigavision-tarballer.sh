@@ -11,6 +11,10 @@ usage() {
     exit 1
 }
 
+if [ $# -lt 1 ]
+then
+    usage
+fi
 
 
 # Check all camdirs exist

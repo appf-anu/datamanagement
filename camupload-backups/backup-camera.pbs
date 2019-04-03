@@ -1,49 +1,58 @@
 #!/bin/bash
 #PBS -P xe2
-#PBS -q normal
+#PBS -q express
 #PBS -l ncpus=1
-#PBS -l walltime=72:00:00
+#PBS -l walltime=24:00:00
 #PBS -l other=gdata1
 #PBS -l mem=2G
 #PBS -l wd
-#PBS -o /g/data1a/xe2/phenomics/camupload-backups/log
-#PBS -e /g/data1a/xe2/phenomics/camupload-backups/log
+#PBS -j oe
+#PBS -o /g/data/xe2/phenomics/datamanagement-workspace/logs/camupload-backups/
 #PBS -m abe
 #PBS -M pbs@kdmurray.id.au,m6b6j7n4m7x0o5x6@bvz-traitcapture.slack.com
 #PBS -W umask=002
 
-CODEDIR=/g/data/xe2/phenomics/datamanagement-workspace/code/camupload-backups/
-THIS_SCRIPT=$CODEDIR/backup-camera.pbs
-CAMUPLOAD=/g/data/xe2/phenomics/camupload
 
-source /g/data1/xe2/.profile
-module load python3/3.6.2
+source /g/data1/xe2/phenomics/opt/source-this.sh
+
+echo CAMPATH: "${CAMPATH}"	CAMERA: "${CAMERA}"	STARTDATE: "${STARTDATE}"	ENDDATE: "${ENDDATE}"	FORMAT: "${FORMAT}"	TYPE: "${TYPE}"
 
 set -xeuo pipefail
-echo CAMPATH: "${CAMPATH}"	CAMERA: "${CAMERA}"	STARTDATE: "${STARTDATE}"	ENDDATE: "${ENDDATE}"	FORMAT: "${FORMAT}"	DEST:	"${DEST}"
+CODEDIR=/g/data/xe2/phenomics/datamanagement-workspace/code/camupload-backups/
+LOGDIR=/g/data/xe2/phenomics/datamanagement-workspace/logs/camupload-backups/
+THIS_SCRIPT=$CODEDIR/backup-camera.pbs
+CAMUPLOAD=/g/data/xe2/phenomics/camupload
+DEST=/g/data/xe2/phenomics/resources/cameras/$TYPE/
+
+mkdir -p $LOGDIR
+mkdir -p $DEST
 
 # Self-submit?
 NEXT=$(qsub -W depend=afterany:$PBS_JOBID \
-            -v CAMPATH="${CAMPATH}",CAMERA="${CAMERA}",STARTDATE="${STARTDATE}",ENDDATE="${ENDDATE}",FORMAT="${FORMAT}",DEST="${DEST}" \
+            -v CAMPATH="${CAMPATH}",CAMERA="${CAMERA}",STARTDATE="${STARTDATE}",ENDDATE="${ENDDATE}",FORMAT="${FORMAT}",TYPE="${TYPE}" \
             "$THIS_SCRIPT")
 
 # fix permissions. Here because we don't get to below until whole thing is done
-mkdir -p "$DEST/$CAMERA"
-find "$DEST/$CAMERA" -type d -user $USER -exec chmod ug=rwx {} \; || true
-find "$DEST/$CAMERA" -type f -user $USER -exec chmod ug=rw {} \; || true
+# permissions in the too hard basket for now, do this properly after the fact 2019-03-27
+# permissions ought not need modification, so let's see how this goes 2019-03-27
+#find "$DEST/$CAMERA" -type d -user $USER -exec chmod ug=rwx {} \; || true
+#find "$DEST/$CAMERA" -type f -user $USER -exec chmod ug=rw {} \; || true
 
-$CODEDIR/zip-bundler.py \
-    --start-date "$STARTDATE" \
-    --end-date "$ENDDATE" \
-    --format "$FORMAT" \
-    --output "$DEST/$CAMERA" \
-    --bundle day \
-    "$CAMPATH" >>"/g/data1a/xe2/phenomics/camupload-backups/log/${CAMERA}_${FORMAT}.log" 2>&1
+python3 $CODEDIR/zip-bundler.py                                         \
+    --start-date "$STARTDATE"                                   \
+    --end-date "$ENDDATE"                                       \
+    --format "$FORMAT"                                          \
+    --output "$DEST/$CAMERA"                                    \
+    --bundle day                                                \
+    "$CAMPATH" >>"$LOGDIR/${TYPE}_${CAMERA}_${FORMAT}.log" 2>&1 \
+
+# leave a blank above me
 
 # fix permissions again
-find "$DEST/$CAMERA" -type d -user $USER -exec chmod ug=rwx {} \; || true
-find "$DEST/$CAMERA" -type f -user $USER -exec chmod ug=rw {} \; || true
-find /g/data1a/xe2/phenomics/camupload-backups/log -type f -user $USER -exec chmod ug=rw {} \; || true
+# permissions in the too hard basket for now, do this properly after the fact 2019-03-27
+#find "$DEST/$CAMERA" -type d -user $USER -exec chmod ug=rwx {} \; || true
+#find "$DEST/$CAMERA" -type f -user $USER -exec chmod ug=rw {} \; || true
+#find /g/data1a/xe2/phenomics/camupload-backups/log -type f -user $USER -exec chmod ug=rw {} \; || true
 
 # Self-submit?
 if [ -n "${NEXT:-}" ]
